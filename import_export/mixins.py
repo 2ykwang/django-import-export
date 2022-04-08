@@ -46,6 +46,12 @@ class BaseExportMixin(BaseImportExportMixin):
         Returns available export formats.
         """
         return [f for f in self.formats if f().can_export()]
+    
+    def get_streaming_export_formats(self):
+        """
+        Returns available streaming export formats.
+        """
+        return [f for f in self.formats if f().can_streaming_export()]
 
     def get_export_resource_class(self):
         """

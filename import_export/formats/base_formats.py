@@ -99,6 +99,10 @@ class TablibFormat(Format):
     def can_export(self):
         return hasattr(self.get_format(), 'export_set')
 
+    def can_streaming_export(self):
+        support_streaming_extension = ("csv",)
+        format = self.get_format()
+        return hasattr(format, 'title') and getattr(format, 'title') in support_streaming_extension 
 
 class TextFormat(TablibFormat):
     def get_read_mode(self):

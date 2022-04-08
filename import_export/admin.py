@@ -410,8 +410,10 @@ class ExportMixin(BaseExportMixin, ImportExportMixinBase):
             raise PermissionDenied
 
         formats = self.get_export_formats()
+        streaming_formats = self.get_streaming_export_formats()
+        
         form_type = self.get_export_form()
-        form = form_type(formats, request.POST or None)
+        form = form_type(formats, streaming_formats, request.POST or None)
         if form.is_valid():
             file_format = formats[
                 int(form.cleaned_data['file_format'])

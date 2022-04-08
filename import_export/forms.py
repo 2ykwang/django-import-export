@@ -37,21 +37,39 @@ class ConfirmImportForm(forms.Form):
 
 
 class ExportForm(forms.Form):
+    is_streaming_export = forms.BooleanField(label=_("Large datasets export"), required=False)
     file_format = forms.ChoiceField(
         label=_('Format'),
         choices=(),
         )
 
-    def __init__(self, formats, *args, **kwargs):
+    def __init__(self, formats, streaming_formats, *args, **kwargs):
         super().__init__(*args, **kwargs)
         choices = []
         for i, f in enumerate(formats):
             choices.append((str(i), f().get_title(),))
         if len(formats) > 1:
             choices.insert(0, ('', '---'))
-
-        self.fields['file_format'].choices = choices
-
+            
+        self.formats = formats
+        self.streaming_formats = streaming_formats
+        self.fields['file_format'].choices = choices 
+        
+        print(self.streaming_formats)
+        
+    def clean(self):
+        cleaned_data = super().clean()
+        is_streaming_export = cleaned_data.get("is_streaming_export", False)
+        select_format = self.formats[int(cleaned_data["file_format"])]
+        
+        if is_streaming_export and select_format not in self.streaming_formats:
+            self.add_error(
+                "is_streaming_export", 
+                _("{} extension does not support exporting large datasets.").format(
+                    select_format().get_extension()
+                ))
+ 
+        return cleaned_data
 
 def export_action_form_factory(formats):
     """
