@@ -6,7 +6,7 @@ from django.contrib.admin.models import ADDITION, CHANGE, DELETION, LogEntry
 from django.contrib.auth import get_permission_codename
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import PermissionDenied
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, StreamingHttpResponse, HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils.decorators import method_decorator
@@ -378,15 +378,21 @@ class ExportMixin(BaseExportMixin, ImportExportMixinBase):
 
         return cl.get_queryset(request)
 
-    def get_export_data(self, file_format, queryset, *args, **kwargs):
+    def get_export_data(self, queryset, *args, **kwargs):
         """
         Returns file_format representation for given queryset.
         """
         request = kwargs.pop("request")
+        file_format = kwargs.get("file_format")
+        is_streaming_export = kwargs.get("is_streaming_export",False)
+        
         if not self.has_export_permission(request):
             raise PermissionDenied
 
         data = self.get_data_for_export(request, queryset, *args, **kwargs)
+        if is_streaming_export:
+            return data
+        
         export_data = file_format.export_data(data)
         encoding = kwargs.get("encoding")
         if not file_format.is_binary() and encoding:
@@ -417,12 +423,24 @@ class ExportMixin(BaseExportMixin, ImportExportMixinBase):
         if form.is_valid():
             file_format = formats[
                 int(form.cleaned_data['file_format'])
-            ]()
+            ]()            
+            is_streaming_export = form.cleaned_data['is_streaming_export']
 
             queryset = self.get_export_queryset(request)
-            export_data = self.get_export_data(file_format, queryset, request=request, encoding=self.to_encoding)
-            content_type = file_format.get_content_type()
-            response = HttpResponse(export_data, content_type=content_type)
+            export_data = self.get_export_data( 
+                queryset,
+                request=request,
+                file_format=file_format,
+                encoding=self.to_encoding, 
+                is_streaming_export=is_streaming_export
+            )
+            
+            content_type = file_format.get_content_type() 
+            if is_streaming_export:
+                response = StreamingHttpResponse(export_data, content_type=content_type)
+            else:
+                response = HttpResponse(export_data, content_type=content_type)
+
             response['Content-Disposition'] = 'attachment; filename="%s"' % (
                 self.get_export_filename(request, queryset, file_format),
             )
